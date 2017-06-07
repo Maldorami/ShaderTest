@@ -3,7 +3,6 @@
 	Properties
 	{
 		_Color("Color Tint", Color) = (1,1,1,1)
-
 		_MainTex ("Texture", 2D) = "white" {}
 
 		_AlphaModifier("Alpha", Range(0,1)) = 1
@@ -21,13 +20,10 @@
 
 		Pass
 		{
-
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			// make fog work
-			#pragma multi_compile_fog
-			
+			#pragma multi_compile_fog			
 			#include "UnityCG.cginc"
 			#include "UnityLightingCommon.cginc"
 

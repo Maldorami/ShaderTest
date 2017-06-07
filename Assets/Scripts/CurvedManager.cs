@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-[ExecuteInEditMode]
+//[ExecuteInEditMode]
 public class CurvedManager : MonoBehaviour {
 
     public bool bend = false;
