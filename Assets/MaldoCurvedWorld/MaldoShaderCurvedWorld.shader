@@ -1,12 +1,4 @@
-﻿// Upgrade NOTE: replaced '_World2Object' with 'unity_WorldToObject'
-
-// Upgrade NOTE: replaced '_World2Object' with 'unity_WorldToObject'
-
-#warning Upgrade NOTE : unity_Scale shader variable was removed; replaced 'unity_Scale.w' with '1.0'
-// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
-// Upgrade NOTE: replaced '_World2Object' with 'unity_WorldToObject'
-
-Shader "Maldo/CurvedWorld"
+﻿Shader "Maldo/CurvedWorld"
 {
 	Properties{
 		_Color("Color Tint", Color) = (1,1,1,1)
@@ -21,7 +13,7 @@ Shader "Maldo/CurvedWorld"
 			Pass
 			{
 				CGPROGRAM
-				#pragma vertex vert
+				#pragma vertex vert addshadow
 				#pragma fragment frag
 				#pragma multi_compile_fog			
 				#include "UnityCG.cginc"
@@ -37,7 +29,7 @@ Shader "Maldo/CurvedWorld"
 			struct v2f
 			{
 				float4 pos: SV_POSITION;
-				float2 uv: TEXCOORD0;
+				float4 uv: TEXCOORD0;
 				UNITY_FOG_COORDS(1)
 				float3 normal : NORMAL;
 				fixed4 diff : COLOR;
@@ -77,17 +69,17 @@ Shader "Maldo/CurvedWorld"
 						o.pos = mul(UNITY_MATRIX_MVP, Effect(v.vertex));
 					}
 
+					o.uv = mul(unity_ObjectToWorld, v.vertex);
+					o.uv.xy = v.uv;
 
-					o.uv = TRANSFORM_TEX(v.uv, _MainTex); 
 					UNITY_TRANSFER_FOG(o, o.vertex);
 
 					o.normal = v.normal;
 
 					// get vertex normal in world space
-					half3 worldNormal = UnityObjectToWorldNormal(-v.normal);
+					float3 worldNormal = UnityObjectToWorldNormal(v.normal) * v.vertex;
 					// standard diffuse (Lambert) lighting
-					half nl = max(0, dot(worldNormal, _WorldSpaceLightPos0.xyz));
-					 //factor in the light color
+					half nl = max(0, mul(worldNormal,- _WorldSpaceLightPos0.xyz));
 
 					o.diff = nl + _LightColor0 * UNITY_LIGHTMODEL_AMBIENT;
 
@@ -98,14 +90,11 @@ Shader "Maldo/CurvedWorld"
 
 				fixed4 frag(v2f i) : SV_Target
 				{
-
 					fixed4 col = tex2D(_MainTex, i.uv);
 					UNITY_APPLY_FOG(i.fogCoord, col);
 
 					col *= i.diff;
 					col *= _Color;
-
-					//col.a = _AlphaModifier;
 
 					return col;
 				}
