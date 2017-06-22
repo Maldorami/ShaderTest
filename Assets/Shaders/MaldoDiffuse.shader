@@ -1,7 +1,4 @@
-﻿// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
-// Upgrade NOTE: replaced '_World2Object' with 'unity_WorldToObject'
-
-Shader "Maldo/Diffuse" {
+﻿Shader "Maldo/Diffuse" {
 	Properties{
 		_Color("Diffuse Material Color", Color) = (1,1,1,1)
 		_MainTex("Texture", 2D) = "white" {}
@@ -34,6 +31,21 @@ Shader "Maldo/Diffuse" {
 	};
 
 	sampler2D _MainTex;
+	uniform int _bend;
+	uniform float _HORIZONOFFSETX;
+	uniform float _HORIZONOFFSETZ;
+	uniform float _ATTENUATE;
+	uniform float _SPREAD;
+
+	float4 Effect(float4 v) {
+		float4 t = mul(unity_ObjectToWorld, v);
+		float disX = max(0, abs(_HORIZONOFFSETX - t.x) - _SPREAD);
+		t.y += disX * disX * _ATTENUATE;
+		float disZ = max(0, abs( _HORIZONOFFSETZ - t.z) - _SPREAD);
+		t.y += disZ * disZ * _ATTENUATE;
+		t.xyz = mul(unity_WorldToObject, t) * 1.0;
+		return t;
+	}
 
 	vertexOutput vert(vertexInput input)
 	{
@@ -68,7 +80,16 @@ Shader "Maldo/Diffuse" {
 			* max(0.0, dot(normalDirection, lightDirection));
 
 		output.col = float4(diffuseReflection, 1.0);
-		output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+
+		if (_bend == 1)
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, Effect(input.vertex));
+		}
+		else
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+		}
+
 		return output;
 	}
 
@@ -87,10 +108,10 @@ Shader "Maldo/Diffuse" {
 
 		CGPROGRAM
 
-#pragma vertex vert  
-#pragma fragment frag 
+		#pragma vertex vert  
+		#pragma fragment frag 
 
-#include "UnityCG.cginc"
+		#include "UnityCG.cginc"
 
 		uniform float4 _LightColor0;
 	// color of light source (from "Lighting.cginc")
@@ -108,6 +129,21 @@ Shader "Maldo/Diffuse" {
 	};
 
 	sampler2D _MainTex;
+	uniform int _bend;
+	uniform float _HORIZONOFFSETX;
+	uniform float _HORIZONOFFSETZ;
+	uniform float _ATTENUATE;
+	uniform float _SPREAD;
+
+	float4 Effect(float4 v) {
+		float4 t = mul(unity_ObjectToWorld, v);
+		float disX = max(0, abs(_HORIZONOFFSETX - t.x) - _SPREAD);
+		t.y += disX * disX * _ATTENUATE;
+		float disZ = max(0, abs( _HORIZONOFFSETZ - t.z) - _SPREAD);
+		t.y += disZ * disZ * _ATTENUATE;
+		t.xyz = mul(unity_WorldToObject, t) * 1.0;
+		return t;
+	}
 
 	vertexOutput vert(vertexInput input)
 	{
@@ -117,7 +153,7 @@ Shader "Maldo/Diffuse" {
 		float4x4 modelMatrixInverse = unity_WorldToObject;
 
 		float3 normalDirection = normalize(
-			mul(float4(input.normal, 0.0), modelMatrixInverse).xyz);
+		mul(float4(input.normal, 0.0), modelMatrixInverse).xyz);
 		float3 lightDirection;
 		float attenuation;
 
@@ -142,7 +178,15 @@ Shader "Maldo/Diffuse" {
 			* max(0.0, dot(normalDirection, lightDirection));
 
 		output.col = float4(diffuseReflection, 1.0);
-		output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+		if (_bend == 1)
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, Effect(input.vertex));
+		}
+		else
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+		}
+
 		return output;
 	}
 

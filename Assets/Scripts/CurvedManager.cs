@@ -5,6 +5,7 @@ public class CurvedManager : MonoBehaviour {
 
     public bool bend = false;
     float horizon = 0.0f;
+	[Range(-0.005f,0.005f)]
     public float attenuate = 0f;
     public float spread = 0f;
     int tmp;

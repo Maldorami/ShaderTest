@@ -1,66 +1,196 @@
-﻿Shader "Maldo/SpecularVertex"
- {
-      Properties {
-        _MainTex ("Texture 1", 2D) = "white" {}
-        _Ambient("Ambient Color",Color) = (0.3,0.3,0.3,1)
-      }
-      SubShader {
-      Tags { "RenderType"="Opaque"}
-      Pass {
-           Tags { "LightMode" = "Vertex" }//otherwise no light related values will be filled
+﻿Shader "Maldo/Diffuse" {
+	Properties{
+		_Color("Diffuse Material Color", Color) = (1,1,1,1)
+		_MainTex("Texture", 2D) = "white" {}
+	}
+		SubShader{
+		Pass{
+		Tags{ "LightMode" = "ForwardBase" }
+		// pass for first light source
 
-           CGPROGRAM
-           #pragma vertex vert
-           #pragma fragment frag
-           #include "UnityCG.cginc"
-   
-           sampler2D _MainTex;
-           fixed4 _Ambient;
-           half4 _MainTex_ST;
-   
-           struct v2f{
-               fixed4 position: POSITION;
-               half2 uv_MainTex:TEXCOORD0;
-               fixed4 color: COLOR;
-           };
-   
-           v2f vert (appdata_base ab) {
-               v2f o;
-    
-               o.position = mul(UNITY_MATRIX_MVP,ab.vertex);
-               o.uv_MainTex = TRANSFORM_TEX(ab.texcoord.xy , _MainTex);
-    
-               // per vertex light calc
-               fixed3 lightDirection;
-               fixed attenuation;
-               // add diffuse
-               if(unity_LightPosition[0].w == 0.0)//directional light
-               {
-                  attenuation = 1;
-                  lightDirection = normalize(mul(unity_LightPosition[0]  ,UNITY_MATRIX_IT_MV).xyz);
-               }
-               else// point or spot light
-               {
-                  lightDirection = normalize(mul(unity_LightPosition[0],UNITY_MATRIX_IT_MV).xyz - ab.vertex.xyz);
-                  attenuation = 1.0/(length(mul(unity_LightPosition[0],UNITY_MATRIX_IT_MV).xyz - ab.vertex.xyz)) * 0.5;
-               }
+		CGPROGRAM
 
+#pragma vertex vert  
+#pragma fragment frag 
 
-               fixed3 normalDirction = normalize(ab.normal);
-               fixed3 diffuseLight =  unity_LightColor[0].xyz * max(dot(normalDirction,lightDirection),0);
+#include "UnityCG.cginc"	
 
-               // combine the lights (diffuse + ambient)
-               o.color.xyz = diffuseLight * attenuation + _Ambient.xyz;
+	struct vertexInput {
+		float4 vertex : POSITION;
+		float3 normal : NORMAL;
+		float2 uv : TEXCOORD0;
+	};
+	struct vertexOutput {
+		float4 pos : SV_POSITION;
+		float4 col : COLOR;
+	};
 
-               return o;
-           }
-   
-           fixed4 frag(v2f i):COLOR{
-              fixed4 c = tex2D(_MainTex, i.uv_MainTex);   
-              return  c * i.color;
-           }
-           ENDCG
-      }
-      }
-Fallback "Mobile/Diffuse"
+	uniform float4 _LightColor0;
+	uniform float4 _Color;
+	sampler2D _MainTex;
+	uniform int _bend;
+	uniform float _HORIZONOFFSETX;
+	uniform float _HORIZONOFFSETZ;
+	uniform float _ATTENUATE;
+	uniform float _SPREAD;
+
+	float4 Effect(float4 v) {
+		float4 t = mul(unity_ObjectToWorld, v);
+		float disX = max(0, abs(_HORIZONOFFSETX - t.x) - _SPREAD);
+		t.y += disX * disX * _ATTENUATE;
+		float disZ = max(0, abs( _HORIZONOFFSETZ - t.z) - _SPREAD);
+		t.y += disZ * disZ * _ATTENUATE;
+		t.xyz = mul(unity_WorldToObject, t) * 1.0;
+		return t;
+	}
+
+	vertexOutput vert(vertexInput input)
+	{
+		vertexOutput output;
+
+		if (_bend == 1)
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, Effect(input.vertex));
+		}
+		else
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+		}
+
+		float4x4 modelMatrix = unity_ObjectToWorld;
+		float4x4 modelMatrixInverse = unity_WorldToObject;
+
+		float3 normalDirection = normalize(
+			mul(float4(input.normal, 0.0), modelMatrixInverse).xyz);
+		float3 lightDirection;
+		float attenuation;
+
+		float4 texColor = tex2Dlod(_MainTex, float4(input.uv, 0, 0));
+
+		if (0.0 == _WorldSpaceLightPos0.w) // directional light?
+		{
+			attenuation = 1.0; // no attenuation
+			lightDirection = normalize(_WorldSpaceLightPos0.xyz);
+		}
+		else // point or spot light
+		{
+			float3 vertexToLightSource = _WorldSpaceLightPos0.xyz
+				- mul(modelMatrix, input.vertex).xyz;
+			float distance = length(vertexToLightSource);
+			attenuation = 1.0 / distance; // linear attenuation 
+			lightDirection = normalize(vertexToLightSource);
+		}
+
+		float3 diffuseReflection =
+			attenuation * _LightColor0.rgb * _Color.rgb * texColor
+			* max(0.0, dot(normalDirection, lightDirection));
+
+		output.col = float4(diffuseReflection, 1.0);
+		output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+		return output;
+	}
+
+	float4 frag(vertexOutput input) : COLOR
+	{
+		return input.col;
+	}
+
+		ENDCG
+	}
+
+		Pass{
+		Tags{ "LightMode" = "ForwardBase" }
+		// pass for first light source
+
+		CGPROGRAM
+
+#pragma vertex vert  
+#pragma fragment frag 
+
+#include "UnityCG.cginc"	
+
+	struct vertexInput {
+		float4 vertex : POSITION;
+		float3 normal : NORMAL;
+		float2 uv : TEXCOORD0;
+	};
+	struct vertexOutput {
+		float4 pos : SV_POSITION;
+		float4 col : COLOR;
+	};
+
+	uniform float4 _LightColor0;
+	uniform float4 _Color;
+	sampler2D _MainTex;
+	uniform int _bend;
+	uniform float _HORIZONOFFSETX;
+	uniform float _HORIZONOFFSETZ;
+	uniform float _ATTENUATE;
+	uniform float _SPREAD;
+
+	float4 Effect(float4 v) {
+		float4 t = mul(unity_ObjectToWorld, v);
+		float disX = max(0, abs(_HORIZONOFFSETX - t.x) - _SPREAD);
+		t.y += disX * disX * _ATTENUATE;
+		float disZ = max(0, abs( _HORIZONOFFSETZ - t.z) - _SPREAD);
+		t.y += disZ * disZ * _ATTENUATE;
+		t.xyz = mul(unity_WorldToObject, t) * 1.0;
+		return t;
+	}
+
+	vertexOutput vert(vertexInput input)
+	{
+		vertexOutput output;
+
+		if (_bend == 1)
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, Effect(input.vertex));
+		}
+		else
+		{
+			output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+		}
+
+		float4x4 modelMatrix = unity_ObjectToWorld;
+		float4x4 modelMatrixInverse = unity_WorldToObject;
+
+		float3 normalDirection = normalize(
+			mul(float4(input.normal, 0.0), modelMatrixInverse).xyz);
+		float3 lightDirection;
+		float attenuation;
+
+		float4 texColor = tex2Dlod(_MainTex, float4(input.uv, 0, 0));
+
+		if (0.0 == _WorldSpaceLightPos0.w) // directional light?
+		{
+			attenuation = 1.0; // no attenuation
+			lightDirection = normalize(_WorldSpaceLightPos0.xyz);
+		}
+		else // point or spot light
+		{
+			float3 vertexToLightSource = _WorldSpaceLightPos0.xyz
+				- mul(modelMatrix, input.vertex).xyz;
+			float distance = length(vertexToLightSource);
+			attenuation = 1.0 / distance; // linear attenuation 
+			lightDirection = normalize(vertexToLightSource);
+		}
+
+		float3 diffuseReflection =
+			attenuation * _LightColor0.rgb * _Color.rgb * texColor
+			* max(0.0, dot(normalDirection, lightDirection));
+
+		output.col = float4(diffuseReflection, 1.0);
+		output.pos = mul(UNITY_MATRIX_MVP, input.vertex);
+		return output;
+	}
+
+	float4 frag(vertexOutput input) : COLOR
+	{
+		return input.col;
+	}
+
+		ENDCG
+	}
+	}
+		Fallback "Diffuse"
 }
